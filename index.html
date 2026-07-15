@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLBB Oyuncu Değerlendirme Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E1A; --bg2:#0E1424; --panel:#141A2E; --panel2:#1A2137;
+    --border:#26304A; --border2:#323d5c;
+    --text:#E6EAF5; --muted:#8A93AD; --muted2:#5f6884;
+    --mythic:#A05CF5; --mythic-dim:#6a3fa8; --gold:#F5C542;
+    --t-trash:#6B7280; --t-bad:#C0574F; --t-avg:#C7923E;
+    --t-good:#4A9EDB; --t-vgood:#9B5CF5; --t-legend:#F5C542;
+    --ok:#4ADE80; --warn:#F5C542; --danger:#F0716A;
+    --radius:14px; --radius-sm:9px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:
+      radial-gradient(1100px 600px at 78% -8%, rgba(160,92,245,.16), transparent 60%),
+      radial-gradient(900px 500px at 5% 8%, rgba(74,158,219,.10), transparent 55%),
+      var(--bg);
+    color:var(--text); font-family:'Inter',system-ui,sans-serif;
+    line-height:1.55; -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .wrap{max-width:1120px; margin:0 auto; padding:0 20px}
+
+  /* ---------- top bar ---------- */
+  header{position:sticky; top:0; z-index:50; backdrop-filter:blur(12px);
+    background:linear-gradient(180deg, rgba(11,14,26,.92), rgba(11,14,26,.72));
+    border-bottom:1px solid var(--border)}
+  .bar{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 0}
+  .brand{display:flex; align-items:center; gap:11px; min-width:0}
+  .logo{width:34px; height:34px; flex:none; display:grid; place-items:center;
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    background:linear-gradient(150deg,var(--mythic),var(--gold)); color:#0B0E1A;
+    font-family:'Chakra Petch'; font-weight:700; font-size:16px}
+  .brand b{font-family:'Chakra Petch'; font-weight:600; letter-spacing:.3px; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .brand span{display:block; font-size:11px; color:var(--muted); font-weight:500; letter-spacing:.4px}
+  .lang{display:flex; border:1px solid var(--border2); border-radius:999px; overflow:hidden; flex:none}
+  .lang button{background:transparent; color:var(--muted); border:0; padding:7px 14px; font-family:'Chakra Petch'; font-weight:600; font-size:12px; letter-spacing:.5px; cursor:pointer; transition:.15s}
+  .lang button.on{background:var(--mythic); color:#fff}
+  .lang button:not(.on):hover{color:var(--text)}
+
+  /* ---------- hero ---------- */
+  .hero{padding:46px 0 26px; border-bottom:1px solid var(--border)}
+  .eyebrow{font-family:'Chakra Petch'; font-size:12px; letter-spacing:2.5px; text-transform:uppercase; color:var(--mythic); font-weight:600}
+  .hero h1{font-family:'Chakra Petch'; font-weight:700; font-size:clamp(28px,5vw,46px); line-height:1.08; margin:12px 0 10px; letter-spacing:-.5px}
+  .hero h1 .g{background:linear-gradient(100deg,var(--mythic),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .hero p{color:var(--muted); max-width:640px; font-size:15.5px; margin:0}
+  .formula{margin-top:20px; display:inline-flex; flex-wrap:wrap; gap:8px 10px; align-items:center;
+    font-family:'Chakra Petch'; font-size:13.5px; color:var(--text);
+    background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:11px 15px}
+  .formula .k{color:var(--gold)} .formula .m{color:var(--mythic)} .formula .op{color:var(--muted2)}
+
+  /* ---------- layout ---------- */
+  .grid{display:grid; grid-template-columns:1.15fr .85fr; gap:22px; padding:30px 0 10px; align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel),var(--bg2)); border:1px solid var(--border); border-radius:var(--radius)}
+  .card-h{display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid var(--border)}
+  .card-h .num{font-family:'Chakra Petch'; font-weight:700; font-size:12px; color:var(--mythic); border:1px solid var(--mythic-dim); border-radius:6px; padding:2px 7px}
+  .card-h h2{font-family:'Chakra Petch'; font-size:15px; font-weight:600; margin:0; letter-spacing:.3px}
+  .card-b{padding:18px}
+
+  /* ---------- form ---------- */
+  .field{margin-bottom:15px}
+  .field:last-child{margin-bottom:0}
+  label{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text)}
+  label .req{color:var(--mythic); font-size:11px}
+  label .opt{color:var(--muted2); font-size:11px; font-weight:500}
+  .hint{font-size:11.5px; color:var(--muted); font-weight:400; margin:5px 0 0; line-height:1.4}
+  .tip{position:relative; display:inline-grid; place-items:center; width:15px; height:15px; border-radius:50%; border:1px solid var(--border2); color:var(--muted); font-size:10px; cursor:help; font-weight:700; flex:none}
+  .tip:hover::after{content:attr(data-t); position:absolute; bottom:130%; left:50%; transform:translateX(-50%);
+    background:#05070f; color:var(--text); border:1px solid var(--border2); border-radius:8px; padding:8px 10px;
+    font-size:11.5px; font-weight:400; width:210px; line-height:1.4; z-index:20; box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  input,select{width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius-sm); padding:10px 12px; font-family:inherit; font-size:14px; transition:.15s; outline:none}
+  input:focus,select:focus{border-color:var(--mythic); box-shadow:0 0 0 3px rgba(160,92,245,.16)}
+  input::placeholder{color:var(--muted2)}
+  select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238A93AD' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:13px}
+  .sub{font-family:'Chakra Petch'; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); font-weight:600; margin:22px 0 13px; padding-top:16px; border-top:1px dashed var(--border); display:flex; align-items:center; gap:8px}
+  .sub:first-child{margin-top:0; padding-top:0; border-top:0}
+  .sub .badge-opt{font-size:10px; color:var(--mythic); border:1px solid var(--mythic-dim); border-radius:5px; padding:1px 6px; letter-spacing:.5px}
+  .actions{display:flex; gap:11px; margin-top:22px}
+  .btn{flex:1; border:0; border-radius:var(--radius-sm); padding:13px; font-family:'Chakra Petch'; font-weight:600; font-size:14px; letter-spacing:.5px; cursor:pointer; transition:.15s}
+  .btn-p{background:linear-gradient(100deg,var(--mythic),#7b46d4); color:#fff}
+  .btn-p:hover{filter:brightness(1.1); transform:translateY(-1px)}
+  .btn-s{flex:0 0 auto; background:transparent; border:1px solid var(--border2); color:var(--muted); padding:13px 18px}
+  .btn-s:hover{color:var(--text); border-color:var(--muted)}
+
+  /* ---------- result ---------- */
+  .result{position:sticky; top:78px}
+  .empty{padding:50px 24px; text-align:center; color:var(--muted)}
+  .empty .em{font-size:34px; margin-bottom:12px; opacity:.5}
+  .empty p{margin:0; font-size:13.5px}
+
+  .badge-wrap{padding:26px 18px 8px; text-align:center; position:relative; overflow:hidden}
+  .tierband{position:absolute; inset:0; opacity:.13; background:radial-gradient(400px 200px at 50% 0%, var(--tc,var(--mythic)), transparent 70%)}
+  .emblem{position:relative; width:120px; height:132px; margin:0 auto 6px; display:grid; place-items:center}
+  .emblem svg{position:absolute; inset:0; width:100%; height:100%; filter:drop-shadow(0 6px 20px rgba(0,0,0,.5))}
+  .emblem .score{position:relative; font-family:'Chakra Petch'; font-weight:700; font-size:40px; line-height:1; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.6)}
+  .emblem .of{position:relative; display:block; font-size:11px; color:rgba(255,255,255,.7); font-weight:500; margin-top:2px; letter-spacing:1px}
+  .tiername{position:relative; font-family:'Chakra Petch'; font-weight:700; font-size:21px; letter-spacing:.5px; color:var(--tc,var(--mythic)); margin-top:8px}
+  .tierdesc{position:relative; color:var(--muted); font-size:12.5px; max-width:280px; margin:5px auto 0}
+  .pid{position:relative; font-size:12px; color:var(--muted); margin-top:12px; font-family:'Chakra Petch'; letter-spacing:.5px}
+  .pid b{color:var(--text)}
+
+  .warnbox{margin:4px 18px 0; display:flex; flex-direction:column; gap:7px}
+  .warn-item{display:flex; align-items:flex-start; gap:9px; background:rgba(245,197,66,.08); border:1px solid rgba(245,197,66,.28); border-radius:9px; padding:9px 11px; font-size:12.5px; color:var(--text)}
+  .warn-item .i{color:var(--warn); flex:none; font-weight:700}
+
+  .metrics{padding:16px 18px 20px}
+  .metrics h3{font-family:'Chakra Petch'; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); font-weight:600; margin:16px 0 12px; display:flex; align-items:center; gap:8px}
+  .metrics h3:first-child{margin-top:0}
+  .mrow{display:grid; grid-template-columns:120px 1fr 52px; align-items:center; gap:10px; margin-bottom:9px; font-size:12.5px}
+  .mrow .ml{color:var(--muted)}
+  .mrow .mv{text-align:right; font-family:'Chakra Petch'; font-weight:600; color:var(--text)}
+  .track{position:relative; height:8px; background:var(--bg); border-radius:6px; border:1px solid var(--border)}
+  .track .mid{position:absolute; left:calc((1/1.3 - .75/1.3)/(1-.75/1.3)*0%); top:-3px; bottom:-3px; width:1px; background:var(--muted2); opacity:.6}
+  .track .fill{position:absolute; top:0; bottom:0; left:0; border-radius:6px; background:linear-gradient(90deg,var(--mythic),var(--gold))}
+  .track .midmark{position:absolute; top:-2px; height:12px; width:2px; background:var(--muted); opacity:.55; border-radius:2px}
+  .kv{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border); font-size:12.5px}
+  .kv:last-child{border-bottom:0}
+  .kv .k{color:var(--muted)} .kv .v{font-family:'Chakra Petch'; font-weight:600}
+
+  /* ---------- notes / guide ---------- */
+  .guide{padding:20px 0 60px}
+  .guide-h{font-family:'Chakra Petch'; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--mythic); font-weight:600; margin:40px 0 4px}
+  .guide h2{font-family:'Chakra Petch'; font-size:24px; font-weight:700; margin:2px 0 20px; letter-spacing:-.3px}
+  .acc{border:1px solid var(--border); border-radius:11px; margin-bottom:10px; overflow:hidden; background:var(--panel)}
+  .acc summary{cursor:pointer; padding:15px 17px; font-weight:600; font-size:14px; list-style:none; display:flex; align-items:center; gap:11px; font-family:'Chakra Petch'; letter-spacing:.3px}
+  .acc summary::-webkit-details-marker{display:none}
+  .acc summary .ico{width:22px; height:22px; flex:none; display:grid; place-items:center; border-radius:6px; background:var(--panel2); color:var(--mythic); font-size:13px; transition:.2s}
+  .acc[open] summary .ico{transform:rotate(90deg); background:var(--mythic); color:#fff}
+  .acc .body{padding:2px 17px 17px; color:var(--muted); font-size:13.5px}
+  .acc .body p{margin:0 0 10px}
+  .acc .body strong{color:var(--text); font-weight:600}
+  .acc .body code{font-family:'Chakra Petch'; background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:1px 6px; font-size:12.5px; color:var(--gold)}
+  .acc .body ul{margin:0 0 10px; padding-left:20px}
+  .acc .body li{margin-bottom:5px}
+
+  .tiers{display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:11px; margin-top:6px}
+  .tier{border:1px solid var(--border); border-left:3px solid var(--tc); border-radius:9px; padding:12px 13px; background:var(--panel)}
+  .tier .tn{font-family:'Chakra Petch'; font-weight:700; font-size:13.5px; color:var(--tc)}
+  .tier .tt{font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.4}
+  .tier .th{font-family:'Chakra Petch'; font-size:11px; color:var(--muted2); margin-top:7px; letter-spacing:.5px}
+
+  /* ---------- leaderboard ---------- */
+  .lb{padding:14px 0 6px}
+  .lb-top{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:6px}
+  .lb-mode{display:flex; align-items:center; gap:8px; font-family:'Chakra Petch'; font-size:12px; font-weight:600; letter-spacing:.5px; border:1px solid var(--border2); border-radius:999px; padding:6px 13px; color:var(--muted); white-space:nowrap}
+  .lb-mode .dot{width:8px; height:8px; border-radius:50%; background:var(--muted2)}
+  .lb-mode.shared{color:var(--ok); border-color:rgba(74,222,128,.4)} .lb-mode.shared .dot{background:var(--ok); box-shadow:0 0 8px var(--ok)}
+  .lb-mode.local .dot{background:var(--gold)}
+  .lb-note{color:var(--muted); font-size:12.5px; margin:0 0 16px; max-width:760px; line-height:1.5}
+  .lb-note b{color:var(--text)}
+  .lb-controls{display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap}
+  .lb-controls select{width:auto; min-width:150px; padding:8px 34px 8px 12px; font-size:13px}
+  .lb-controls .btn-s{flex:0 0 auto; padding:9px 15px; font-size:12.5px; border-radius:var(--radius-sm)}
+  .lb-card{background:linear-gradient(180deg,var(--panel),var(--bg2)); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+  .lb-row{display:grid; grid-template-columns:52px 1fr 110px 130px 74px 40px; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); font-size:13.5px}
+  .lb-row.head{background:var(--bg2); font-family:'Chakra Petch'; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); font-weight:600}
+  .lb-row:last-child{border-bottom:0}
+  .lb-row .rk{font-family:'Chakra Petch'; font-weight:700; font-size:15px; color:var(--muted); text-align:center}
+  .lb-row .rk.g1{color:var(--gold)} .lb-row .rk.g2{color:#cdd3e0} .lb-row .rk.g3{color:#c7923e}
+  .lb-row .nm{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .lb-row .ln{color:var(--muted); font-size:12.5px}
+  .lb-row .tr{font-family:'Chakra Petch'; font-weight:600; font-size:12.5px; color:var(--tc); display:flex; align-items:center; gap:6px}
+  .lb-row .tr .d{width:8px; height:8px; border-radius:50%; background:var(--tc); flex:none}
+  .lb-row .sc{font-family:'Chakra Petch'; font-weight:700; font-size:16px; text-align:right; color:var(--text)}
+  .lb-row .del{background:transparent; border:0; color:var(--muted2); cursor:pointer; font-size:15px; padding:4px; border-radius:6px; transition:.15s; text-align:center}
+  .lb-row .del:hover{color:var(--danger); background:rgba(240,113,106,.1)}
+  .lb-empty{padding:40px 20px; text-align:center; color:var(--muted); font-size:13.5px}
+  .lb-empty .em{font-size:30px; opacity:.4; margin-bottom:10px}
+  .btn-save{width:100%; margin:12px 18px 4px; width:calc(100% - 36px); border:1px solid var(--mythic-dim); background:rgba(160,92,245,.12); color:var(--mythic); border-radius:var(--radius-sm); padding:11px; font-family:'Chakra Petch'; font-weight:600; font-size:13.5px; letter-spacing:.5px; cursor:pointer; transition:.15s}
+  .btn-save:hover{background:rgba(160,92,245,.22)}
+  .btn-save.done{border-color:rgba(74,222,128,.4); background:rgba(74,222,128,.12); color:var(--ok); cursor:default}
+  @media(max-width:640px){
+    .lb-row{grid-template-columns:38px 1fr 68px 40px; gap:9px; font-size:12.5px}
+    .lb-row .ln,.lb-row .hln{display:none}
+    .lb-row .tr .tname{display:none}
+  }
+  /* ---------- contact ---------- */
+  .contact{padding:14px 0 44px}
+  .contact-card{background:linear-gradient(135deg,var(--panel),var(--bg2)); border:1px solid var(--border); border-radius:var(--radius); padding:26px 24px; display:flex; align-items:center; justify-content:space-between; gap:24px; flex-wrap:wrap; position:relative; overflow:hidden}
+  .contact-card::before{content:""; position:absolute; inset:0; background:radial-gradient(420px 180px at 90% 0%, rgba(160,92,245,.14), transparent 65%); pointer-events:none}
+  .contact-txt{position:relative; max-width:440px}
+  .contact-txt h3{font-family:'Chakra Petch'; font-size:19px; font-weight:700; margin:0 0 6px; letter-spacing:-.2px}
+  .contact-txt p{margin:0; color:var(--muted); font-size:13.5px; line-height:1.5}
+  .contact-links{position:relative; display:flex; gap:11px; flex-wrap:wrap}
+  .clink{display:flex; align-items:center; gap:10px; text-decoration:none; border:1px solid var(--border2); border-radius:11px; padding:11px 15px; transition:.15s; background:var(--bg)}
+  .clink:hover{border-color:var(--mythic); transform:translateY(-2px)}
+  .clink .ci{width:34px; height:34px; flex:none; border-radius:9px; display:grid; place-items:center}
+  .clink.ig .ci{background:linear-gradient(45deg,#f09433,#e6683c 30%,#dc2743 50%,#cc2366 75%,#bc1888)}
+  .clink.tt .ci{background:#111}
+  .clink .cmeta{line-height:1.2}
+  .clink .cmeta b{display:block; font-family:'Chakra Petch'; font-size:14px; font-weight:600; color:var(--text)}
+  .clink .cmeta span{font-size:11.5px; color:var(--muted)}
+  @media(max-width:560px){.contact-card{flex-direction:column; align-items:flex-start} .contact-links{width:100%} .clink{flex:1}}
+  footer{border-top:1px solid var(--border); padding:24px 0 40px; color:var(--muted2); font-size:12.5px}
+  footer a{color:var(--muted); text-decoration:none}
+  footer a:hover{color:var(--mythic)}
+  .disc{margin-top:8px; font-size:11.5px; color:var(--muted2); line-height:1.5}
+
+  @media(prefers-reduced-motion:no-preference){
+    .reveal{animation:pop .45s cubic-bezier(.2,.9,.3,1.4) both}
+    @keyframes pop{from{opacity:0; transform:scale(.9) translateY(8px)}to{opacity:1; transform:none}}
+  }
+  :focus-visible{outline:2px solid var(--mythic); outline-offset:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand">
+      <div class="logo">M</div>
+      <div><b data-i="brand">MLBB Değerlendirme</b><span data-i="brandsub">Oyuncu Performans Skoru · v3</span></div>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="tr" class="on" onclick="setLang('tr')">TR</button>
+      <button id="en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow" data-i="eyebrow">Mobile Legends: Bang Bang</div>
+    <h1 data-i="h1"></h1>
+    <p data-i="hsub"></p>
+    <div class="formula" aria-hidden="true">
+      <span data-i="fscore">Skor</span> <span class="op">=</span>
+      <span>KDA<sup>0.47</sup></span> <span class="op">×</span>
+      <span>WR<sup>1.45</sup></span> <span class="op">×</span>
+      <span class="k">(0.85 + MVP)</span> <span class="op">×</span>
+      <span>10</span> <span class="op">×</span>
+      <span class="k" data-i="frank">Rank</span> <span class="op">×</span>
+      <span class="m">PI<sup>γ</sup></span>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="grid">
+    <!-- ============ FORM ============ -->
+    <div class="card">
+      <div class="card-h"><span class="num">01</span><h2 data-i="formtitle">Oyuncu Verileri</h2></div>
+      <div class="card-b">
+        <div class="field">
+          <label data-i="l_id">Oyuncu İsmi / ID <span class="opt" data-i="opt">(opsiyonel)</span></label>
+          <input id="pid" data-ph="ph_id" placeholder="ör. Nightingale">
+        </div>
+        <div class="field">
+          <label>Pozisyon (Lane) <span class="req">*</span>
+            <span class="tip" data-t-key="t_pos">?</span></label>
+          <select id="pos">
+            <option value="Gold Lane">Gold Lane</option>
+            <option value="Jungle">Jungle</option>
+            <option value="Mid Lane">Mid Lane</option>
+            <option value="EXP Lane">EXP Lane</option>
+            <option value="Roam">Roam</option>
+            <option value="Flex" selected>Flex</option>
+          </select>
+          <p class="hint" data-i="h_pos"></p>
+        </div>
+
+        <div class="sub"><span data-i="s_core">Çekirdek Veriler</span><span class="req">*</span></div>
+        <div class="two">
+          <div class="field">
+            <label>KDA <span class="req">*</span> <span class="tip" data-t-key="t_kda">?</span></label>
+            <input id="kda" type="number" step="any" min="0" placeholder="3.53">
+          </div>
+          <div class="field">
+            <label data-i="l_wr">Winrate % <span class="req">*</span> <span class="tip" data-t-key="t_wr">?</span></label>
+            <input id="wr" type="number" step="any" min="0" max="99.99" placeholder="55.47">
+          </div>
+          <div class="field">
+            <label data-i="l_matches">Maç Sayısı <span class="req">*</span></label>
+            <input id="matches" type="number" step="1" min="0" placeholder="1783">
+          </div>
+          <div class="field">
+            <label data-i="l_mvp">MVP Loss Sayısı <span class="req">*</span> <span class="tip" data-t-key="t_mvp">?</span></label>
+            <input id="mvpLoss" type="number" step="1" min="0" placeholder="195">
+          </div>
+        </div>
+        <div class="field">
+          <label data-i="l_star">En Yüksek Yıldız <span class="opt" data-i="opt">(opsiyonel)</span> <span class="tip" data-t-key="t_star">?</span></label>
+          <input id="star" type="number" step="1" min="0" placeholder="112">
+          <p class="hint" data-i="h_star"></p>
+        </div>
+
+        <div class="sub"><span data-i="s_pi">Performans Endeksi Metrikleri</span><span class="badge-opt" data-i="opt2">opsiyonel</span></div>
+        <p class="hint" style="margin:-4px 0 14px" data-i="h_pi"></p>
+        <div class="two">
+          <div class="field">
+            <label data-i="l_ts">Takım Savaşı Katılımı % <span class="tip" data-t-key="t_ts">?</span></label>
+            <input id="ts" type="number" step="any" min="0" placeholder="54.1">
+          </div>
+          <div class="field">
+            <label data-i="l_gold">Altın / dk</label>
+            <input id="gold" type="number" step="any" min="0" placeholder="709">
+          </div>
+          <div class="field">
+            <label data-i="l_dmg">Kahraman Hasarı / dk</label>
+            <input id="dmg" type="number" step="any" min="0" placeholder="3930">
+          </div>
+          <div class="field">
+            <label data-i="l_death">Ölüm / Maç <span class="tip" data-t-key="t_death">?</span></label>
+            <input id="death" type="number" step="any" min="0" placeholder="5.33">
+          </div>
+        </div>
+        <div class="field">
+          <label data-i="l_turret">Kule Hasarı / Maç</label>
+          <input id="turret" type="number" step="any" min="0" placeholder="3237">
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-p" onclick="run()" data-i="calc">Hesapla</button>
+          <button class="btn btn-s" onclick="fillDemo()" data-i="demo">Örnek</button>
+          <button class="btn btn-s" onclick="reset()" data-i="clear">Temizle</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RESULT ============ -->
+    <div class="card result" id="resultCard">
+      <div class="card-h"><span class="num">02</span><h2 data-i="restitle">Sonuç</h2></div>
+      <div id="resultBody">
+        <div class="empty">
+          <div class="em">◈</div>
+          <p data-i="emptymsg">Verileri girip “Hesapla”ya bas. Sonuç, skor amblemi ve endeks dökümü burada görünür.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LEADERBOARD ============ -->
+  <section class="lb" id="lbSection">
+    <div class="lb-top">
+      <div>
+        <div class="guide-h" data-i="lb_eyebrow">Sıralama</div>
+        <h2 style="font-family:'Chakra Petch';font-size:24px;font-weight:700;margin:2px 0 0;letter-spacing:-.3px" data-i="lb_title">Liderlik Tablosu</h2>
+      </div>
+      <div class="lb-mode local" id="lbMode"><span class="dot"></span><span id="lbModeTxt"></span></div>
+    </div>
+    <p class="lb-note" id="lbNote"></p>
+    <div class="lb-controls">
+      <select id="lbFilter" onchange="renderLB()">
+        <option value="" data-i="lb_all">Tüm pozisyonlar</option>
+        <option value="Gold Lane">Gold Lane</option>
+        <option value="Jungle">Jungle</option>
+        <option value="Mid Lane">Mid Lane</option>
+        <option value="EXP Lane">EXP Lane</option>
+        <option value="Roam">Roam</option>
+        <option value="Flex">Flex</option>
+      </select>
+      <button class="btn-s" id="lbClear" onclick="clearLB()"></button>
+    </div>
+    <div class="lb-card" id="lbTable"></div>
+  </section>
+
+  <!-- ============ GUIDE ============ -->
+  <section class="guide">
+    <div class="guide-h" data-i="g_eyebrow">Nasıl Kullanılır & Açıklamalar</div>
+    <h2 data-i="g_title">Rehber</h2>
+
+    <details class="acc" open><summary><span class="ico">›</span><span data-i="g1t">1 · Hızlı başlangıç</span></summary>
+      <div class="body" data-i="g1b"></div></details>
+    <details class="acc"><summary><span class="ico">›</span><span data-i="g2t">2 · Verileri nereden bulurum?</span></summary>
+      <div class="body" data-i="g2b"></div></details>
+    <details class="acc"><summary><span class="ico">›</span><span data-i="g3t">3 · Formül nasıl çalışır?</span></summary>
+      <div class="body" data-i="g3b"></div></details>
+    <details class="acc"><summary><span class="ico">›</span><span data-i="g4t">4 · Performans Endeksi (PI) & pozisyon benchmark’ları</span></summary>
+      <div class="body" data-i="g4b"></div></details>
+    <details class="acc"><summary><span class="ico">›</span><span data-i="g5t">5 · Uyarılar ne anlama gelir?</span></summary>
+      <div class="body" data-i="g5b"></div></details>
+
+    <div class="guide-h" style="margin-top:34px" data-i="tiers_eyebrow">Değerlendirme Seviyeleri</div>
+    <h2 data-i="tiers_title">Skor Aralıkları</h2>
+    <div class="tiers" id="tierGrid"></div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section class="contact">
+    <div class="contact-card">
+      <div class="contact-txt">
+        <h3 data-i="contact_title">İletişim</h3>
+        <p data-i="contact_text"></p>
+      </div>
+      <div class="contact-links">
+        <a class="clink ig" href="https://instagram.com/asgarovali._" target="_blank" rel="noopener">
+          <span class="ci"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/></svg></span>
+          <span class="cmeta"><b>@asgarovali._</b><span>Instagram</span></span>
+        </a>
+        <a class="clink tt" href="https://tiktok.com/@the_n1ghtingale" target="_blank" rel="noopener">
+          <span class="ci"><svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M16.5 3c.3 2.1 1.5 3.6 3.5 3.9v2.5c-1.2.1-2.4-.2-3.5-.8v5.9c0 3.4-2.6 5.5-5.5 5.5S5.5 15.4 5.5 12.9c0-2.9 2.4-4.9 5.1-4.7v2.6c-.4-.1-.8-.2-1.2-.1-1.2.1-2.1 1.1-2 2.3.1 1.2 1.1 2.1 2.3 2 1.2-.1 2-1 2-2.3V3h2.8z"/></svg></span>
+          <span class="cmeta"><b>@the_n1ghtingale</b><span>TikTok</span></span>
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div data-i="foot"></div>
+    <div class="disc" data-i="disc"></div>
+  </div>
+</footer>
+
+<script>
+/* =====================================================================
+   SHARED LEADERBOARD CONFIG  (optional)
+   ---------------------------------------------------------------------
+   Leave both blank  -> leaderboard saves to each visitor's OWN device.
+   Fill both in      -> leaderboard becomes GLOBAL and shared by everyone.
+   Get these two values free from https://supabase.com  (see the guide).
+   ===================================================================== */
+const SUPABASE_URL = "";   // e.g. "https://abcdefgh.supabase.co"
+const SUPABASE_KEY = "";   // the "anon public" API key (safe to be public)
+
+/* ================= CONSTANTS (from Benchmark Legenda) ================= */
+const C={C_MVP:.85,K:10,KDA_EXP:.47,WR_EXP:1.45,STAR_BONUS:.0035,SUB_MYTHIC:.8,FLOOR:.75,CEIL:1.3,GAMMA:1};
+const BENCH={
+ "Gold Lane":{ts:50,gold:720,dmg:4600,death:3.8,turret:7500},
+ "Jungle":{ts:58,gold:700,dmg:3800,death:4.3,turret:3800},
+ "Mid Lane":{ts:58,gold:620,dmg:4800,death:4,turret:1800},
+ "EXP Lane":{ts:52,gold:640,dmg:3200,death:4.5,turret:4500},
+ "Roam":{ts:70,gold:540,dmg:1900,death:5,turret:1200},
+ "Flex":{ts:58,gold:630,dmg:3700,death:4.3,turret:3800}};
+const WT={ts:.3,gold:.2,dmg:.2,death:.1,turret:.2};
+const THRESH=[[15,"legend"],[10.5,"vgood"],[9,"good"],[6.8,"avg"],[5,"bad"],[0,"trash"]];
+const clip=x=>Math.min(C.CEIL,Math.max(C.FLOOR,x));
+const num=id=>{const v=document.getElementById(id).value.trim(); return v===""?null:parseFloat(v);};
+const has=v=>v!==null&&v!==undefined&&!isNaN(v);
+
+/* ================= CALCULATION (mirrors the Excel exactly) ================= */
+function calculate(){
+ const pos=document.getElementById('pos').value;
+ const inp={kda:num('kda'),wr:num('wr'),matches:num('matches'),mvpLoss:num('mvpLoss'),star:num('star'),
+   ts:num('ts'),gold:num('gold'),dmg:num('dmg'),death:num('death'),turret:num('turret')};
+ const bench=BENCH[pos]||BENCH["Flex"];
+ const posKnown=!!BENCH[pos];
+ const lost=(has(inp.matches)&&has(inp.wr))?inp.matches*(1-inp.wr/100):null;
+ const mvpRatio=(has(inp.mvpLoss)&&has(lost)&&lost>0)?inp.mvpLoss/lost:null;
+ const rankBonus=(!has(inp.star)||inp.star===0)?C.SUB_MYTHIC:1+Math.min(inp.star/2,100)*C.STAR_BONUS;
+ let core=null;
+ if(has(inp.kda)&&has(inp.wr)&&has(inp.matches)&&has(inp.mvpLoss)&&has(lost)&&lost>0&&inp.kda>0)
+   core=Math.pow(inp.kda,C.KDA_EXP)*Math.pow(inp.wr/100,C.WR_EXP)*(C.C_MVP+mvpRatio)*C.K*rankBonus;
+ const idx={
+   ts:  !has(inp.ts)?1: clip((inp.ts<=1.5?inp.ts*100:inp.ts)/bench.ts),
+   gold:!has(inp.gold)?1: clip(inp.gold/bench.gold),
+   dmg: !has(inp.dmg)?1: clip(inp.dmg/bench.dmg),
+   death:!has(inp.death)?1:(inp.death<=0?C.CEIL:clip(bench.death/inp.death)),
+   turret:!has(inp.turret)?1: clip(inp.turret/bench.turret)};
+ const pi=Math.pow(Math.pow(idx.ts,WT.ts)*Math.pow(idx.gold,WT.gold)*Math.pow(idx.dmg,WT.dmg)*Math.pow(idx.death,WT.death)*Math.pow(idx.turret,WT.turret),C.GAMMA);
+ const score=has(core)?Math.min(core*pi,20):null;
+ // warnings
+ const w=[];
+ if(has(inp.matches)&&inp.matches<500)w.push('few');
+ const filled=[inp.ts,inp.gold,inp.dmg,inp.death,inp.turret].filter(has).length;
+ if(filled>0&&filled<5)w.push('partial');
+ if(!posKnown)w.push('unknownpos');
+ const atCeil=[idx.ts,idx.gold,idx.dmg,idx.death,idx.turret].filter(v=>v>=C.CEIL).length;
+ if(atCeil>=2)w.push('ceil');
+ let tier=null;
+ if(has(score))for(const[t,key]of THRESH){if(score>=t){tier=key;break;}}
+ return{pos,posKnown,inp,lost,mvpRatio,rankBonus,core,idx,pi,score,tier,warnings:w};
+}
+
+/* ================= RENDER ================= */
+function emblemSVG(color){
+ return `<svg viewBox="0 0 120 132" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="${color}" stop-opacity=".95"/>
+   <stop offset="1" stop-color="${color}" stop-opacity=".35"/></linearGradient></defs>
+  <path d="M60 4 L112 30 L112 90 L60 128 L8 90 L8 30 Z" fill="url(#eg)" stroke="${color}" stroke-width="2"/>
+  <path d="M60 14 L103 36 L103 85 L60 117 L17 85 L17 36 Z" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+ </svg>`;
+}
+let lastResult=null;
+function run(){
+ const r=calculate(); const L=DICT[lang];
+ const body=document.getElementById('resultBody');
+ if(!has(r.score)){
+   lastResult=null;
+   body.innerHTML=`<div class="empty"><div class="em">⚠</div><p>${L.needcore}</p></div>`;
+   return;
+ }
+ lastResult=r;
+ const tc=`var(--t-${r.tier})`;
+ const pid=document.getElementById('pid').value.trim();
+ const tinfo=L.tierinfo[r.tier];
+ const idxRow=(labelKey,val)=>{
+   const pct=Math.max(0,Math.min(100,((val-C.FLOOR)/(C.CEIL-C.FLOOR))*100));
+   return `<div class="mrow"><span class="ml">${L[labelKey]}</span>
+     <span class="track"><span class="fill" style="width:${pct}%"></span>
+     <span class="midmark" style="left:${((1-C.FLOOR)/(C.CEIL-C.FLOOR))*100}%"></span></span>
+     <span class="mv">${val.toFixed(3)}</span></div>`;
+ };
+ let warnHTML='';
+ if(r.warnings.length){
+   warnHTML='<div class="warnbox">'+r.warnings.map(w=>
+     `<div class="warn-item"><span class="i">⚠</span><span>${L.warn[w]}</span></div>`).join('')+'</div>';
+ }
+ body.innerHTML=`
+  <div class="badge-wrap reveal" style="--tc:${tc}">
+    <div class="tierband" style="--tc:${tc}"></div>
+    <div class="emblem">${emblemSVG(getComputedStyle(document.documentElement).getPropertyValue('--t-'+r.tier).trim())}
+      <div><div class="score">${r.score.toFixed(2)}</div><span class="of">/ 20</span></div></div>
+    <div class="tiername">${tinfo.name}</div>
+    <div class="tierdesc">${tinfo.desc}</div>
+    ${pid?`<div class="pid">${L.player}: <b>${escapeHtml(pid)}</b> · ${r.pos}</div>`:`<div class="pid">${r.pos}</div>`}
+  </div>
+  ${warnHTML}
+  <div class="metrics">
+    <h3>${L.breakdown}</h3>
+    <div class="kv"><span class="k">${L.corescore}</span><span class="v">${r.core.toFixed(3)}</span></div>
+    <div class="kv"><span class="k">${L.piLabel}</span><span class="v">${r.pi.toFixed(3)}</span></div>
+    <div class="kv"><span class="k">${L.rankbonus}</span><span class="v">${r.rankBonus.toFixed(3)}</span></div>
+    <div class="kv"><span class="k">${L.mvpratio}</span><span class="v">${has(r.mvpRatio)?r.mvpRatio.toFixed(3):'—'}</span></div>
+    <div class="kv"><span class="k">${L.lostm}</span><span class="v">${has(r.lost)?Math.round(r.lost):'—'}</span></div>
+    <h3>${L.indices} <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted2)">(0.75–1.30)</span></h3>
+    ${idxRow('l_ts_s',r.idx.ts)}
+    ${idxRow('l_gold_s',r.idx.gold)}
+    ${idxRow('l_dmg_s',r.idx.dmg)}
+    ${idxRow('l_death_s',r.idx.death)}
+    ${idxRow('l_turret_s',r.idx.turret)}
+  </div>
+  <button class="btn-save" id="saveBtn" onclick="saveResult()">${L.lb_save}</button>`;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ================= DEMO / RESET ================= */
+function fillDemo(){
+ const d={pid:'Nightingale',pos:'Flex',kda:3.53,wr:55.47,matches:1783,mvpLoss:195,star:112,ts:54.1,gold:709,dmg:3930,death:5.33,turret:3237};
+ for(const k in d){const el=document.getElementById(k); if(el)el.value=d[k];}
+ run(); document.getElementById('resultCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function reset(){
+ ['pid','kda','wr','matches','mvpLoss','star','ts','gold','dmg','death','turret'].forEach(id=>document.getElementById(id).value='');
+ document.getElementById('pos').value='Flex';
+ const L=DICT[lang];
+ document.getElementById('resultBody').innerHTML=`<div class="empty"><div class="em">◈</div><p>${L.emptymsg}</p></div>`;
+}
+
+/* ================= LEADERBOARD ================= */
+const LB_SHARED = !!(SUPABASE_URL && SUPABASE_KEY);
+const LB_KEY = 'mlbb_leaderboard';
+
+async function lbList(){
+ if(LB_SHARED){
+   try{
+     const res=await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=*&order=score.desc&limit=200`,
+       {headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY}});
+     if(!res.ok) throw new Error(res.status);
+     return {ok:true, rows:await res.json()};
+   }catch(e){ return {ok:false, rows:lbLocalGet()}; }
+ }
+ return {ok:true, rows:lbLocalGet()};
+}
+function lbLocalGet(){ try{return JSON.parse(localStorage.getItem(LB_KEY)||'[]');}catch(e){return [];} }
+function lbLocalSet(a){ try{localStorage.setItem(LB_KEY,JSON.stringify(a));}catch(e){} }
+
+async function saveResult(){
+ if(!lastResult) return;
+ const L=DICT[lang];
+ const nameRaw=document.getElementById('pid').value.trim();
+ const entry={ name:nameRaw||L.lb_anon, position:lastResult.pos,
+   score:Math.round(lastResult.score*1000)/1000, tier:lastResult.tier };
+ const btn=document.getElementById('saveBtn');
+ if(btn){btn.disabled=true; btn.textContent=L.lb_saving;}
+ if(LB_SHARED){
+   try{
+     const res=await fetch(`${SUPABASE_URL}/rest/v1/leaderboard`,{method:'POST',
+       headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,'Content-Type':'application/json',Prefer:'return=minimal'},
+       body:JSON.stringify(entry)});
+     if(!res.ok) throw new Error(res.status);
+   }catch(e){ // fall back to local
+     const a=lbLocalGet(); a.push({...entry,id:'loc_'+Date.now(),created_at:new Date().toISOString()}); lbLocalSet(a);
+   }
+ }else{
+   const a=lbLocalGet(); a.push({...entry,id:'loc_'+Date.now(),created_at:new Date().toISOString()}); lbLocalSet(a);
+ }
+ if(btn){btn.textContent=L.lb_saved; btn.classList.add('done');}
+ await renderLB();
+ document.getElementById('lbSection').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function removeEntry(id){
+ // deletion only in local mode; shared entries are moderated from the Supabase dashboard
+ const a=lbLocalGet().filter(x=>String(x.id)!==String(id)); lbLocalSet(a); await renderLB();
+}
+async function clearLB(){
+ const L=DICT[lang];
+ if(!confirm(L.lb_clear_confirm)) return;
+ lbLocalSet([]); await renderLB();
+}
+
+const TIER_NAME=k=>DICT[lang].tierinfo[k]?DICT[lang].tierinfo[k].name:k;
+async function renderLB(){
+ const L=DICT[lang];
+ const modeEl=document.getElementById('lbMode');
+ const noteEl=document.getElementById('lbNote');
+ if(LB_SHARED){
+   modeEl.style.display='';
+   modeEl.className='lb-mode shared';
+   document.getElementById('lbModeTxt').textContent=L.lb_mode_shared;
+   noteEl.style.display=''; noteEl.innerHTML=L.lb_note_shared;
+ }else{
+   modeEl.style.display='none';
+   noteEl.style.display='none';
+ }
+ document.getElementById('lbClear').style.display=LB_SHARED?'none':'inline-block';
+ document.getElementById('lbClear').textContent=L.lb_clear;
+ const filter=document.getElementById('lbFilter').value;
+ const {rows}=await lbList();
+ let list=rows.slice().sort((a,b)=>b.score-a.score);
+ if(filter) list=list.filter(r=>r.position===filter);
+ const tbl=document.getElementById('lbTable');
+ if(!list.length){
+   tbl.innerHTML=`<div class="lb-empty"><div class="em">◈</div>${L.lb_empty}</div>`;
+   return;
+ }
+ const head=`<div class="lb-row head"><span>#</span><span>${L.lb_player}</span><span class="hln">${L.lb_lane}</span><span>${L.lb_tier}</span><span style="text-align:right">${L.lb_score}</span><span></span></div>`;
+ const rowsHTML=list.map((r,i)=>{
+   const rk=i+1; const gc=rk<=3?('g'+rk):'';
+   const tc=getComputedStyle(document.documentElement).getPropertyValue('--t-'+r.tier).trim()||'var(--muted)';
+   const del=LB_SHARED?'' :`<button class="del" title="sil" onclick="removeEntry('${r.id}')">✕</button>`;
+   return `<div class="lb-row">
+     <span class="rk ${gc}">${rk}</span>
+     <span class="nm">${escapeHtml(r.name||L.lb_anon)}</span>
+     <span class="ln">${r.position||''}</span>
+     <span class="tr" style="--tc:${tc}"><span class="d"></span><span class="tname">${TIER_NAME(r.tier)}</span></span>
+     <span class="sc">${Number(r.score).toFixed(2)}</span>
+     ${del||'<span></span>'}</div>`;
+ }).join('');
+ tbl.innerHTML=head+rowsHTML;
+}
+
+/* ================= I18N ================= */
+const DICT={
+ tr:{
+  brand:"MLBB Değerlendirme", brandsub:"Oyuncu Performans Skoru · v3",
+  eyebrow:"Mobile Legends: Bang Bang",
+  h1:'Oyuncu <span class="g">Performans Skoru</span>',
+  hsub:"Bir oyuncunun istatistiklerini gir; sistem KDA, kazanma oranı, MVP performansı, rank ve pozisyona göre 0–20 arası bir skor ve seviye üretsin. Tüm hesaplama tarayıcında yapılır — veri hiçbir yere gönderilmez.",
+  fscore:"Skor", frank:"Rank",
+  formtitle:"Oyuncu Verileri", restitle:"Sonuç",
+  l_id:'Oyuncu İsmi / ID <span class="opt">(opsiyonel)</span>', ph_id:"ör. Nightingale", opt:"(opsiyonel)", opt2:"opsiyonel",
+  h_pos:"Oyuncunun ağırlıklı oynadığı pozisyon. Bilmiyorsan Flex seç (5 pozisyonun ortalaması).",
+  s_core:"Çekirdek Veriler",
+  l_wr:'Winrate %', l_matches:'Maç Sayısı', l_mvp:'MVP Loss Sayısı',
+  l_star:'En Yüksek Yıldız', h_star:"Mythic yıldız sayısı. Boş veya 0 girersen oyuncu Mythic altı sayılır ve 0.8 çarpanı uygulanır.",
+  s_pi:"Performans Endeksi Metrikleri",
+  h_pi:"Bu 5 alan opsiyoneldir. Boş bırakılan her metrik nötr (1.00) sayılır. Hepsi boşsa skor, klasik formülle birebir aynı çıkar. Doğru sonuç için ya hepsini gir ya hiçbirini.",
+  l_ts:'Takım Savaşı Katılımı %', l_gold:'Altın / dk', l_dmg:'Kahraman Hasarı / dk', l_death:'Ölüm / Maç', l_turret:'Kule Hasarı / Maç',
+  calc:"Hesapla", demo:"Örnek", clear:"Temizle",
+  emptymsg:"Verileri girip “Hesapla”ya bas. Sonuç, skor amblemi ve endeks dökümü burada görünür.",
+  needcore:"Skor için çekirdek alanlar gerekli: KDA, Winrate, Maç Sayısı ve MVP Loss Sayısı. Ayrıca Winrate %100 olamaz (kaybedilen maç 0 olur).",
+  player:"Oyuncu",
+  lb_eyebrow:"Sıralama", lb_title:"Liderlik Tablosu",
+  lb_mode_local:"Yerel mod · bu cihaz", lb_mode_shared:"Paylaşımlı mod · global",
+  lb_note_local:"Şu an <b>yerel mod</b>: kayıtlar yalnızca senin cihazında saklanır, başkaları göremez. Herkesin gördüğü <b>global bir tablo</b> için Supabase anahtarlarını ekle (rehbere bak).",
+  lb_note_shared:"<b>Paylaşımlı mod</b> aktif: kayıtlar herkes için ortak veritabanında saklanır ve tüm ziyaretçiler aynı tabloyu görür.",
+  lb_save:"↑ Liderlik tablosuna kaydet", lb_saving:"Kaydediliyor…", lb_saved:"✓ Tabloya eklendi", lb_anon:"Anonim",
+  lb_all:"Tüm pozisyonlar", lb_clear:"Kayıtlarımı temizle", lb_clear_confirm:"Bu cihazdaki tüm kayıtlar silinsin mi?",
+  lb_player:"Oyuncu", lb_lane:"Pozisyon", lb_tier:"Seviye", lb_score:"Skor",
+  lb_empty:"Henüz kayıt yok. Bir skor hesaplayıp “Liderlik tablosuna kaydet”e bas.",
+  breakdown:"Skor Dökümü", corescore:"Çekirdek Skor", piLabel:"Performans Endeksi (PI)", rankbonus:"Rank Bonusu", mvpratio:"MVP Loss Oranı", lostm:"Kaybedilen Maç (tahmini)",
+  indices:"Endeksler",
+  l_ts_s:"TS Endeksi", l_gold_s:"Altın Endeksi", l_dmg_s:"Hasar Endeksi", l_death_s:"Ölüm Endeksi", l_turret_s:"Kule Endeksi",
+  tips:{t_pos:"İstatistik profili kahramanın SINIFINA değil oynanan POZİSYONA bağlıdır. Çok pozisyon oynayan için Flex.",
+    t_kda:"(Öldürme + Asist) / Ölüm. Profil ekranındaki genel KDA.",
+    t_wr:"Kazanma yüzden. 100 olamaz — en az bir maç kaybedilmiş olmalı.",
+    t_mvp:"Kaybettiğin maçlarda MVP olduğun sayı. Kaybederken bile taşımak ödüllendirilir.",
+    t_star:"Mythic derecendeki yıldız (puan). Boş = Mythic altı.",
+    t_ts:"Team-fight participation. Yüzde (55) ya da ondalık (0.55) girebilirsin.",
+    t_death:"Maç başına ortalama ölüm. Ters hesaplanır: az ölmek yüksek endeks demektir."},
+  warn:{few:"Az maç (500’den az) — örneklem küçük, skor oynak olabilir.",
+    partial:"Eksik veri — 5 PI metriğinden yalnızca bir kısmı girilmiş. Seçici veri girişi skoru şişirebilir; ya hepsini gir ya hiçbirini.",
+    unknownpos:"Bilinmeyen pozisyon → Flex benchmark’ı kullanıldı.",
+    ceil:"Endeks tavanda — 2+ endeks üst sınırda. Veri hatası ya da pozisyon uyumsuzluğu olabilir."},
+  tierinfo:{
+    trash:{name:"Çöp Oyuncu",desc:"Oyundan anlamıyor, takıma sadece yük."},
+    bad:{name:"Kötü Oyuncu",desc:"Temel mekanikleri zayıf; genelde yük, bazen katkı."},
+    avg:{name:"Orta Oyuncu",desc:"Bazen yük, bazen katkı sağlar."},
+    good:{name:"İyi Oyuncu",desc:"Takıma genelde katkı sağlar, bazen taşır."},
+    vgood:{name:"Çok İyi Oyuncu",desc:"Takımı sırtlar, çok rekabetçidir."},
+    legend:{name:"Efsanevi Oyuncu",desc:"Tek kelimeyle absolute cinema."}},
+  g_eyebrow:"Nasıl Kullanılır & Açıklamalar", g_title:"Rehber",
+  g1t:"1 · Hızlı başlangıç",
+  g1b:`<p><strong>Üç adım:</strong></p><ul>
+    <li>Oyuncunun <strong>pozisyonunu</strong> seç (bilmiyorsan Flex).</li>
+    <li><strong>Çekirdek veriler</strong> bölümünü doldur (yıldızlı 4 alan zorunlu).</li>
+    <li>İstersen 5 <strong>PI metriğini</strong> ekle, sonra <code>Hesapla</code>’ya bas.</li></ul>
+    <p>Sağdaki kartta skor amblemi, seviye ve tüm endekslerin dökümü çıkar. <code>Örnek</code> butonu gerçek bir oyuncuyla önizleme yükler.</p>`,
+  g2t:"2 · Verileri nereden bulurum?",
+  g2b:`<p>Değerler MLBB profil ve istatistik ekranlarından gelir:</p><ul>
+    <li><strong>KDA, Winrate, Maç Sayısı:</strong> Profil → istatistikler (genel ya da bir kahraman/sezon).</li>
+    <li><strong>MVP Loss:</strong> Kaybedilen maçlardaki MVP sayısı — maç geçmişi/istatistik panelinden.</li>
+    <li><strong>En Yüksek Yıldız:</strong> Mythic puanın (yoksa boş bırak).</li>
+    <li><strong>PI metrikleri</strong> (Altın/dk, Hasar/dk, Ölüm/Maç, Kule Hasarı, TS %): detaylı istatistik ekranından. Yoksa hepsini boş bırakabilirsin.</li></ul>`,
+  g3t:"3 · Formül nasıl çalışır?",
+  g3b:`<p><strong>Skor = Çekirdek Skor × PI<sup>γ</sup></strong> (üst sınır 20).</p>
+    <p><strong>Çekirdek Skor</strong> = KDA<sup>0.47</sup> × (WR/100)<sup>1.45</sup> × (0.85 + MVP Loss Oranı) × 10 × Rank Bonusu</p>
+    <ul>
+    <li><strong>MVP Loss Oranı</strong> = MVP Loss ÷ Kaybedilen Maç. Sadece kayıplara bölünür — kaybederken bile maçın adamı olmak ödüllendirilir.</li>
+    <li><strong>Rank Bonusu</strong> = Mythic altıysa 0.8; değilse 1 + min(Yıldız/2, 100) × 0.0035 (maks +%35).</li>
+    <li>KDA üssü düşük (0.47) tutulur ki Roam gibi düşük-KDA roller cezalandırılmasın; WR üssü yüksek (1.45) ki kazanmak ağır bassın.</li></ul>`,
+  g4t:"4 · Performans Endeksi (PI) & pozisyon benchmark’ları",
+  g4b:`<p><strong>PI</strong>, 5 metriğin ağırlıklı geometrik ortalamasıdır: TS %30, Altın %20, Hasar %20, Ölüm %10, Kule %20.</p>
+    <p>Her endeks = <strong>senin değerin ÷ pozisyonunun benchmark’ı</strong>, ardından <code>0.75–1.30</code> aralığına kırpılır (veri hatası ve farm şişirmesine karşı).</p>
+    <ul>
+    <li><strong>Ölüm endeksi terstir:</strong> benchmark ÷ senin ölümün — az ölmek yüksek endeks.</li>
+    <li><strong>Boş metrik = 1.00</strong> (nötr). 5’i de boşsa PI = 1 ve skor klasik formülle aynı olur.</li>
+    <li>Benchmark <strong>1.00 = ortalama Mythic oyuncusu</strong> demektir (pro değil).</li></ul>`,
+  g5t:"5 · Uyarılar ne anlama gelir?",
+  g5b:`<ul>
+    <li><strong>Az maç:</strong> 500’den az maç — örneklem küçük.</li>
+    <li><strong>Eksik veri:</strong> 5 PI metriğinden yalnızca bir kısmı girilmiş; skor yanıltıcı olabilir.</li>
+    <li><strong>Bilinmeyen pozisyon → Flex:</strong> Pozisyon tanınmadı, Flex benchmark’ı kullanıldı.</li>
+    <li><strong>Endeks tavanda:</strong> 2+ endeks üst sınırda — veri hatası ya da pozisyon uyumsuzluğu olabilir.</li></ul>`,
+  tiers_eyebrow:"Değerlendirme Seviyeleri", tiers_title:"Skor Aralıkları",
+  th_prefix:"eşik",
+  contact_title:"İletişim",
+  contact_text:"Sorun, itiraz veya öneriniz olursa bu hesaplardan iletişime geçebilirsiniz.",
+  foot:"MLBB Oyuncu Performans Değerlendirme Sistemi v3 · Ali Asgarov tarafından hazırlanan formüle dayanır (Instagram: aliasgarov._).",
+  disc:"Bu araç bağımsız bir topluluk aracıdır ve Moonton ile bağlantılı değildir. Tüm hesaplamalar cihazında yerel olarak yapılır; hiçbir veri kaydedilmez veya gönderilmez."
+ },
+ en:{
+  brand:"MLBB Rating", brandsub:"Player Performance Score · v3",
+  eyebrow:"Mobile Legends: Bang Bang",
+  h1:'Player <span class="g">Performance Score</span>',
+  hsub:"Enter a player's stats and the system produces a 0–20 score and tier based on KDA, win rate, MVP performance, rank, and lane. Everything is computed in your browser — no data leaves your device.",
+  fscore:"Score", frank:"Rank",
+  formtitle:"Player Data", restitle:"Result",
+  l_id:'Player Name / ID <span class="opt">(optional)</span>', ph_id:"e.g. Nightingale", opt:"(optional)", opt2:"optional",
+  h_pos:"The lane the player mainly plays. Choose Flex if unsure (average of all 5 lanes).",
+  s_core:"Core Data",
+  l_wr:'Win rate %', l_matches:'Matches', l_mvp:'MVP-in-Loss Count',
+  l_star:'Highest Star', h_star:"Mythic star count. Leave empty or 0 to treat the player as sub-Mythic (applies a 0.8 multiplier).",
+  s_pi:"Performance Index Metrics",
+  h_pi:"These 5 fields are optional. Any left blank counts as neutral (1.00). If all are blank, the score matches the classic formula exactly. For an honest result, fill all of them or none.",
+  l_ts:'Team-fight Participation %', l_gold:'Gold / min', l_dmg:'Hero Damage / min', l_death:'Deaths / Match', l_turret:'Turret Damage / Match',
+  calc:"Calculate", demo:"Example", clear:"Clear",
+  emptymsg:"Enter the data and press “Calculate.” The score emblem and index breakdown appear here.",
+  needcore:"Core fields are required for a score: KDA, Win rate, Matches and MVP-in-Loss Count. Also, Win rate can't be 100% (that leaves zero lost matches).",
+  player:"Player",
+  lb_eyebrow:"Rankings", lb_title:"Leaderboard",
+  lb_mode_local:"Local mode · this device", lb_mode_shared:"Shared mode · global",
+  lb_note_local:"Currently <b>local mode</b>: entries are stored only on your device and nobody else can see them. To get a <b>global board everyone shares</b>, add your Supabase keys (see the guide).",
+  lb_note_shared:"<b>Shared mode</b> is on: entries are stored in a common database and every visitor sees the same board.",
+  lb_save:"↑ Save to leaderboard", lb_saving:"Saving…", lb_saved:"✓ Added to board", lb_anon:"Anonymous",
+  lb_all:"All positions", lb_clear:"Clear my entries", lb_clear_confirm:"Delete all entries stored on this device?",
+  lb_player:"Player", lb_lane:"Lane", lb_tier:"Tier", lb_score:"Score",
+  lb_empty:"No entries yet. Calculate a score and press “Save to leaderboard.”",
+  breakdown:"Score Breakdown", corescore:"Core Score", piLabel:"Performance Index (PI)", rankbonus:"Rank Bonus", mvpratio:"MVP-in-Loss Ratio", lostm:"Lost Matches (est.)",
+  indices:"Indices",
+  l_ts_s:"TF Index", l_gold_s:"Gold Index", l_dmg_s:"Damage Index", l_death_s:"Death Index", l_turret_s:"Turret Index",
+  tips:{t_pos:"A stat profile depends on the lane played, not the hero's class. Use Flex for multi-lane players.",
+    t_kda:"(Kills + Assists) / Deaths. The overall KDA from the profile screen.",
+    t_wr:"Win percentage. Can't be 100 — at least one match must be lost.",
+    t_mvp:"Times you were MVP in matches you lost. Carrying even in a loss is rewarded.",
+    t_star:"Your star (points) at Mythic. Empty = sub-Mythic.",
+    t_ts:"Team-fight participation. Enter as percent (55) or decimal (0.55).",
+    t_death:"Average deaths per match. Inverted: fewer deaths means a higher index."},
+  warn:{few:"Few matches (under 500) — small sample, the score may be volatile.",
+    partial:"Incomplete data — only some of the 5 PI metrics were entered. Cherry-picking inflates the score; enter all or none.",
+    unknownpos:"Unknown position → Flex benchmark was used.",
+    ceil:"Index at ceiling — 2+ indices hit the upper cap. May indicate a data error or lane mismatch."},
+  tierinfo:{
+    trash:{name:"Trash Player",desc:"Doesn't understand the game; pure dead weight."},
+    bad:{name:"Bad Player",desc:"Weak fundamentals; mostly a burden, occasionally useful."},
+    avg:{name:"Average Player",desc:"Sometimes a burden, sometimes a contributor."},
+    good:{name:"Good Player",desc:"Usually contributes, occasionally carries."},
+    vgood:{name:"Very Good Player",desc:"Carries the team; highly competitive."},
+    legend:{name:"Legendary Player",desc:"In one word — absolute cinema."}},
+  g_eyebrow:"How to Use & Explanations", g_title:"Guide",
+  g1t:"1 · Quick start",
+  g1b:`<p><strong>Three steps:</strong></p><ul>
+    <li>Pick the player's <strong>lane</strong> (Flex if unsure).</li>
+    <li>Fill in the <strong>Core Data</strong> section (the 4 starred fields are required).</li>
+    <li>Optionally add the 5 <strong>PI metrics</strong>, then press <code>Calculate</code>.</li></ul>
+    <p>The right-hand card shows the score emblem, tier and a full breakdown of every index. The <code>Example</code> button loads a preview with a real player.</p>`,
+  g2t:"2 · Where do I find the data?",
+  g2b:`<p>The values come from MLBB's profile and stats screens:</p><ul>
+    <li><strong>KDA, Win rate, Matches:</strong> Profile → statistics (overall, or a hero/season).</li>
+    <li><strong>MVP-in-Loss:</strong> Number of MVPs in matches you lost — from match history / stats.</li>
+    <li><strong>Highest Star:</strong> Your Mythic points (leave blank if none).</li>
+    <li><strong>PI metrics</strong> (Gold/min, Damage/min, Deaths/Match, Turret Damage, TF %): from the detailed stats screen. Leave all blank if unavailable.</li></ul>`,
+  g3t:"3 · How does the formula work?",
+  g3b:`<p><strong>Score = Core Score × PI<sup>γ</sup></strong> (capped at 20).</p>
+    <p><strong>Core Score</strong> = KDA<sup>0.47</sup> × (WR/100)<sup>1.45</sup> × (0.85 + MVP-in-Loss Ratio) × 10 × Rank Bonus</p>
+    <ul>
+    <li><strong>MVP-in-Loss Ratio</strong> = MVP-in-Loss ÷ Lost Matches. Dividing only by losses rewards being the standout even in a defeat.</li>
+    <li><strong>Rank Bonus</strong> = 0.8 if sub-Mythic; otherwise 1 + min(Stars/2, 100) × 0.0035 (max +35%).</li>
+    <li>The KDA exponent is low (0.47) so low-KDA lanes like Roam aren't punished; the WR exponent is high (1.45) so winning dominates.</li></ul>`,
+  g4t:"4 · Performance Index (PI) & lane benchmarks",
+  g4b:`<p><strong>PI</strong> is a weighted geometric mean of 5 metrics: TF 30%, Gold 20%, Damage 20%, Deaths 10%, Turret 20%.</p>
+    <p>Each index = <strong>your value ÷ your lane's benchmark</strong>, then clamped to <code>0.75–1.30</code> (guards against data errors and farm inflation).</p>
+    <ul>
+    <li><strong>The death index is inverted:</strong> benchmark ÷ your deaths — fewer deaths, higher index.</li>
+    <li><strong>A blank metric = 1.00</strong> (neutral). If all 5 are blank, PI = 1 and the score equals the classic formula.</li>
+    <li>A benchmark of <strong>1.00 = an average Mythic player</strong> (not a pro).</li></ul>`,
+  g5t:"5 · What do the warnings mean?",
+  g5b:`<ul>
+    <li><strong>Few matches:</strong> under 500 matches — small sample.</li>
+    <li><strong>Incomplete data:</strong> only some of the 5 PI metrics entered; the score may mislead.</li>
+    <li><strong>Unknown position → Flex:</strong> the lane wasn't recognized, so the Flex benchmark was used.</li>
+    <li><strong>Index at ceiling:</strong> 2+ indices hit the cap — possible data error or lane mismatch.</li></ul>`,
+  tiers_eyebrow:"Evaluation Tiers", tiers_title:"Score Ranges",
+  th_prefix:"threshold",
+  contact_title:"Contact",
+  contact_text:"For any problems, objections, or suggestions, feel free to reach out through these accounts.",
+  foot:"MLBB Player Performance Rating System v3 · Based on a formula by Ali Asgarov (Instagram: aliasgarov._).",
+  disc:"An independent community tool, not affiliated with Moonton. All calculations run locally on your device; nothing is stored or transmitted."
+ }
+};
+const TIER_ORDER=[["legend",15],["vgood",10.5],["good",9],["avg",6.8],["bad",5],["trash",4]];
+
+let lang='tr';
+function setLang(l){
+ lang=l; document.documentElement.lang=l;
+ document.getElementById('tr').classList.toggle('on',l==='tr');
+ document.getElementById('en').classList.toggle('on',l==='en');
+ try{localStorage.setItem('mlbb_lang',l);}catch(e){}
+ applyLang();
+}
+function applyLang(){
+ const L=DICT[lang];
+ document.querySelectorAll('[data-i]').forEach(el=>{
+   const k=el.getAttribute('data-i'); if(L[k]!==undefined) el.innerHTML=L[k];
+ });
+ document.querySelectorAll('[data-ph]').forEach(el=>{
+   const k=el.getAttribute('data-ph'); if(L[k]!==undefined) el.placeholder=L[k];
+ });
+ document.querySelectorAll('[data-t-key]').forEach(el=>{
+   const k=el.getAttribute('data-t-key'); if(L.tips[k]!==undefined) el.setAttribute('data-t',L.tips[k]);
+ });
+ // tier grid
+ const grid=document.getElementById('tierGrid');
+ grid.innerHTML=TIER_ORDER.map(([key,thr])=>{
+   const t=L.tierinfo[key];
+   return `<div class="tier" style="--tc:var(--t-${key})">
+     <div class="tn">${t.name}</div><div class="tt">${t.desc}</div>
+     <div class="th">${L.th_prefix.toUpperCase()} ≥ ${thr}</div></div>`;
+ }).join('');
+ // re-render result if present
+ const rb=document.getElementById('resultBody');
+ if(rb && !rb.querySelector('.empty')) run();
+ else if(rb && rb.querySelector('.empty')) rb.querySelector('.empty p').textContent=L.emptymsg;
+ renderLB();
+}
+try{const saved=localStorage.getItem('mlbb_lang'); if(saved==='en'||saved==='tr') lang=saved;}catch(e){}
+setLang(lang);
+</script>
+</body>
+</html>
